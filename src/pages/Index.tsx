@@ -84,7 +84,7 @@ const Index = () => {
       setUser(newUser);
       localStorage.setItem('diaryUser', JSON.stringify(newUser));
       setStep('dashboard');
-      toast.success(`Добро пожаловать, ${name}! 🌸`);
+      toast.success(`Добро пожаловать, ${name}!`);
     } else {
       toast.error('Введите имя и 4-значный PIN-код');
     }
@@ -93,7 +93,7 @@ const Index = () => {
   const handleLogin = () => {
     if (user && loginPin === user.pin) {
       setStep('dashboard');
-      toast.success(`С возвращением, ${user.name}! ✨`);
+      toast.success(`С возвращением, ${user.name}!`);
     } else {
       toast.error('Неверный PIN-код');
       setLoginPin('');
