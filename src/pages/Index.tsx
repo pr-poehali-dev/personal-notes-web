@@ -22,6 +22,7 @@ interface Note {
   date: string;
   content: string;
   title: string;
+  image?: string;
 }
 
 interface Reminder {
@@ -42,6 +43,8 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [noteContent, setNoteContent] = useState('');
+  const [noteTitle, setNoteTitle] = useState('');
+  const [noteImage, setNoteImage] = useState<string | undefined>(undefined);
   const [reminderDescription, setReminderDescription] = useState('');
   const [reminderTime, setReminderTime] = useState('');
   const [editingNote, setEditingNote] = useState<Note | null>(null);
@@ -116,32 +119,53 @@ const Index = () => {
     }
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Файл слишком большой (макс. 5МБ)');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setNoteImage(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const addNote = () => {
-    if (noteContent.trim()) {
-      const words = noteContent.trim().split(' ');
-      const title = words.slice(0, 4).join(' ');
+    if (noteContent.trim() && noteTitle.trim()) {
       const newNote: Note = {
         id: Date.now().toString(),
         date: new Date().toISOString(),
         content: noteContent,
-        title: title || 'Без заголовка'
+        title: noteTitle.trim(),
+        image: noteImage
       };
       setNotes([...notes, newNote]);
       setNoteContent('');
+      setNoteTitle('');
+      setNoteImage(undefined);
       setIsDialogOpen(false);
-      toast.success('Запись добавлена! 📝');
+      toast.success('Запись добавлена');
     }
   };
 
   const updateNote = () => {
-    if (editingNote && noteContent.trim()) {
-      const words = noteContent.trim().split(' ');
-      const title = words.slice(0, 4).join(' ');
-      setNotes(notes.map(n => n.id === editingNote.id ? { ...n, content: noteContent, title } : n));
+    if (editingNote && noteContent.trim() && noteTitle.trim()) {
+      setNotes(notes.map(n => n.id === editingNote.id ? { 
+        ...n, 
+        content: noteContent, 
+        title: noteTitle.trim(),
+        image: noteImage 
+      } : n));
       setEditingNote(null);
       setNoteContent('');
+      setNoteTitle('');
+      setNoteImage(undefined);
       setIsDialogOpen(false);
-      toast.success('Запись обновлена! ✏️');
+      toast.success('Запись обновлена');
     }
   };
 
@@ -162,7 +186,7 @@ const Index = () => {
       setReminderDescription('');
       setReminderTime('');
       setIsReminderDialogOpen(false);
-      toast.success('Напоминание добавлено! 🔔');
+      toast.success('Напоминание добавлено');
     }
   };
 
@@ -179,7 +203,7 @@ const Index = () => {
     a.href = url;
     a.download = 'diary-backup.json';
     a.click();
-    toast.success('Данные экспортированы! 📦');
+    toast.success('Данные экспортированы');
   };
 
   const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -191,7 +215,7 @@ const Index = () => {
           const data = JSON.parse(event.target?.result as string);
           if (data.notes) setNotes(data.notes);
           if (data.reminders) setReminders(data.reminders);
-          toast.success('Данные импортированы! 📥');
+          toast.success('Данные импортированы');
         } catch {
           toast.error('Ошибка чтения файла');
         }
@@ -227,7 +251,9 @@ const Index = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 via-purple-50 to-blue-50">
         <div className="text-center animate-fade-in">
-          <h1 className="text-6xl font-bold text-primary mb-4">✨</h1>
+          <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-primary to-secondary rounded-3xl flex items-center justify-center shadow-xl">
+            <Icon name="BookHeart" size={48} className="text-white" />
+          </div>
           <h2 className="text-4xl font-bold text-foreground mb-2">Мои личные записи</h2>
           <p className="text-muted-foreground text-lg">Твоё личное пространство для мыслей</p>
         </div>
@@ -240,7 +266,9 @@ const Index = () => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 via-purple-50 to-blue-50 p-4">
         <Card className="w-full max-w-md animate-scale-in shadow-2xl border-0">
           <CardHeader className="text-center">
-            <div className="text-5xl mb-4">🌸</div>
+            <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center">
+              <Icon name="Sparkles" size={40} className="text-white" />
+            </div>
             <CardTitle className="text-3xl">Добро пожаловать!</CardTitle>
             <CardDescription>Давай познакомимся</CardDescription>
           </CardHeader>
@@ -268,20 +296,37 @@ const Index = () => {
                 ))}
               </div>
               <div className="grid grid-cols-3 gap-3">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, '←', 0, '✓'].map((digit) => (
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => (
                   <Button
                     key={digit}
-                    onClick={() => {
-                      if (digit === '←') handlePinDelete();
-                      else if (digit === '✓') handleRegister();
-                      else handlePinInput(digit.toString());
-                    }}
-                    variant={digit === '✓' ? 'default' : 'outline'}
+                    onClick={() => handlePinInput(digit.toString())}
+                    variant="outline"
                     className="h-14 text-xl font-semibold"
                   >
                     {digit}
                   </Button>
                 ))}
+                <Button
+                  onClick={handlePinDelete}
+                  variant="outline"
+                  className="h-14 text-xl font-semibold"
+                >
+                  <Icon name="Delete" size={20} />
+                </Button>
+                <Button
+                  onClick={() => handlePinInput('0')}
+                  variant="outline"
+                  className="h-14 text-xl font-semibold"
+                >
+                  0
+                </Button>
+                <Button
+                  onClick={handleRegister}
+                  variant="default"
+                  className="h-14 text-xl font-semibold"
+                >
+                  <Icon name="Check" size={20} />
+                </Button>
               </div>
             </div>
           </CardContent>
@@ -295,7 +340,9 @@ const Index = () => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 via-purple-50 to-blue-50 p-4">
         <Card className="w-full max-w-md animate-scale-in shadow-2xl border-0">
           <CardHeader className="text-center">
-            <div className="text-5xl mb-4">✨</div>
+            <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center">
+              <Icon name="User" size={40} className="text-white" />
+            </div>
             <CardTitle className="text-3xl">С возвращением, {user?.name}!</CardTitle>
             <CardDescription>Введи свой PIN-код</CardDescription>
           </CardHeader>
@@ -311,20 +358,37 @@ const Index = () => {
               ))}
             </div>
             <div className="grid grid-cols-3 gap-3">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, '←', 0, '✓'].map((digit) => (
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => (
                 <Button
                   key={digit}
-                  onClick={() => {
-                    if (digit === '←') handlePinDelete();
-                    else if (digit === '✓') handleLogin();
-                    else handlePinInput(digit.toString());
-                  }}
-                  variant={digit === '✓' ? 'default' : 'outline'}
+                  onClick={() => handlePinInput(digit.toString())}
+                  variant="outline"
                   className="h-14 text-xl font-semibold"
                 >
                   {digit}
                 </Button>
               ))}
+              <Button
+                onClick={handlePinDelete}
+                variant="outline"
+                className="h-14 text-xl font-semibold"
+              >
+                <Icon name="Delete" size={20} />
+              </Button>
+              <Button
+                onClick={() => handlePinInput('0')}
+                variant="outline"
+                className="h-14 text-xl font-semibold"
+              >
+                0
+              </Button>
+              <Button
+                onClick={handleLogin}
+                variant="default"
+                className="h-14 text-xl font-semibold"
+              >
+                <Icon name="Check" size={20} />
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -333,49 +397,130 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-50 pb-8">
-      <div className="container max-w-6xl mx-auto p-4 pt-8">
-        <div className="flex items-center justify-between mb-8 animate-slide-up">
-          <div>
-            <h1 className="text-4xl font-bold text-foreground mb-1">Привет, {user?.name}! 🌈</h1>
-            <p className="text-muted-foreground">
-              {format(new Date(), 'd MMMM yyyy', { locale: ru })}
-            </p>
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-50">
+      <div className="flex">
+        <aside className="hidden md:flex flex-col w-72 min-h-screen bg-white/80 backdrop-blur-sm border-r p-6 space-y-2">
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center">
+                <Icon name="BookHeart" size={20} className="text-white" />
+              </div>
+              <div>
+                <h2 className="font-bold text-lg">Привет, {user?.name}!</h2>
+                <p className="text-xs text-muted-foreground">{format(new Date(), 'd MMM', { locale: ru })}</p>
+              </div>
+            </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
+
+          <button
+            onClick={() => setActiveTab('home')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+              activeTab === 'home' ? 'bg-primary text-white shadow-lg' : 'hover:bg-secondary/20'
+            }`}
+          >
+            <Icon name="Home" size={20} />
+            <span className="font-medium">Главная</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('notes')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+              activeTab === 'notes' ? 'bg-primary text-white shadow-lg' : 'hover:bg-secondary/20'
+            }`}
+          >
+            <Icon name="BookOpen" size={20} />
+            <span className="font-medium">Записи</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('calendar')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+              activeTab === 'calendar' ? 'bg-primary text-white shadow-lg' : 'hover:bg-secondary/20'
+            }`}
+          >
+            <Icon name="Calendar" size={20} />
+            <span className="font-medium">Календарь</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('export')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+              activeTab === 'export' ? 'bg-primary text-white shadow-lg' : 'hover:bg-secondary/20'
+            }`}
+          >
+            <Icon name="Download" size={20} />
+            <span className="font-medium">Данные</span>
+          </button>
+
+          <div className="flex-1"></div>
+
+          <button
             onClick={() => {
               setStep('login');
               setLoginPin('');
             }}
-            className="rounded-full"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50 text-red-600 transition-all"
           >
             <Icon name="LogOut" size={20} />
-          </Button>
-        </div>
+            <span className="font-medium">Выход</span>
+          </button>
+        </aside>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-white/50 backdrop-blur-sm">
-            <TabsTrigger value="home" className="flex items-center gap-2 py-3">
-              <Icon name="Home" size={18} />
-              <span className="hidden sm:inline">Главная</span>
-            </TabsTrigger>
-            <TabsTrigger value="notes" className="flex items-center gap-2 py-3">
-              <Icon name="BookOpen" size={18} />
-              <span className="hidden sm:inline">Записи</span>
-            </TabsTrigger>
-            <TabsTrigger value="calendar" className="flex items-center gap-2 py-3">
-              <Icon name="Calendar" size={18} />
-              <span className="hidden sm:inline">Календарь</span>
-            </TabsTrigger>
-            <TabsTrigger value="export" className="flex items-center gap-2 py-3">
-              <Icon name="Download" size={18} />
-              <span className="hidden sm:inline">Данные</span>
-            </TabsTrigger>
-          </TabsList>
+        <main className="flex-1 p-4 md:p-8">
+          <div className="md:hidden mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-2xl font-bold">Привет, {user?.name}!</h1>
+                <p className="text-sm text-muted-foreground">{format(new Date(), 'd MMMM yyyy', { locale: ru })}</p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => { setStep('login'); setLoginPin(''); }}>
+                <Icon name="LogOut" size={20} />
+              </Button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              <Button
+                variant={activeTab === 'home' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveTab('home')}
+                className="flex-shrink-0"
+              >
+                <Icon name="Home" size={16} className="mr-1" />
+                Главная
+              </Button>
+              <Button
+                variant={activeTab === 'notes' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveTab('notes')}
+                className="flex-shrink-0"
+              >
+                <Icon name="BookOpen" size={16} className="mr-1" />
+                Записи
+              </Button>
+              <Button
+                variant={activeTab === 'calendar' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveTab('calendar')}
+                className="flex-shrink-0"
+              >
+                <Icon name="Calendar" size={16} className="mr-1" />
+                Календарь
+              </Button>
+              <Button
+                variant={activeTab === 'export' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveTab('export')}
+                className="flex-shrink-0"
+              >
+                <Icon name="Download" size={16} className="mr-1" />
+                Данные
+              </Button>
+            </div>
+          </div>
 
-          <TabsContent value="home" className="space-y-6 animate-fade-in">
+        <div className="max-w-5xl mx-auto">
+
+          {activeTab === 'home' && (
+            <div className="space-y-6 animate-fade-in">
             <div className="grid md:grid-cols-2 gap-6">
               <Card className="border-0 shadow-lg">
                 <CardHeader>
@@ -427,9 +572,11 @@ const Index = () => {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
+            </div>
+          )}
 
-          <TabsContent value="notes" className="animate-fade-in">
+          {activeTab === 'notes' && (
+            <div className="animate-fade-in">
             <Card className="border-0 shadow-lg">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -444,25 +591,63 @@ const Index = () => {
                     </Button>
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                       <DialogTrigger asChild>
-                        <Button size="sm" onClick={() => { setEditingNote(null); setNoteContent(''); }}>
+                        <Button size="sm" onClick={() => { 
+                          setEditingNote(null); 
+                          setNoteContent(''); 
+                          setNoteTitle('');
+                          setNoteImage(undefined);
+                        }}>
                           <Icon name="Plus" size={16} className="mr-1" />
                           Новая запись
                         </Button>
                       </DialogTrigger>
-                      <DialogContent>
+                      <DialogContent className="max-w-2xl">
                         <DialogHeader>
                           <DialogTitle>{editingNote ? 'Редактировать запись' : 'Новая запись'}</DialogTitle>
                           <DialogDescription>
-                            Первые 4 слова станут заголовком
+                            Добавь заголовок, текст и фото к своей записи
                           </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">
-                          <Textarea
-                            placeholder="Начни писать..."
-                            value={noteContent}
-                            onChange={(e) => setNoteContent(e.target.value)}
-                            rows={6}
-                          />
+                          <div>
+                            <Label>Заголовок</Label>
+                            <Input
+                              placeholder="Название записи..."
+                              value={noteTitle}
+                              onChange={(e) => setNoteTitle(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label>Фото (необязательно)</Label>
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleImageUpload}
+                              className="cursor-pointer"
+                            />
+                            {noteImage && (
+                              <div className="mt-3 relative">
+                                <img src={noteImage} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
+                                <Button
+                                  variant="destructive"
+                                  size="icon"
+                                  className="absolute top-2 right-2"
+                                  onClick={() => setNoteImage(undefined)}
+                                >
+                                  <Icon name="X" size={16} />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <Label>Текст записи</Label>
+                            <Textarea
+                              placeholder="Начни писать..."
+                              value={noteContent}
+                              onChange={(e) => setNoteContent(e.target.value)}
+                              rows={6}
+                            />
+                          </div>
                           <Button onClick={editingNote ? updateNote : addNote} className="w-full">
                             {editingNote ? 'Сохранить' : 'Создать'}
                           </Button>
@@ -481,34 +666,48 @@ const Index = () => {
                 ) : (
                   <div className="space-y-3">
                     {sortedNotes.map((note) => (
-                      <div key={note.id} className="p-4 bg-accent/20 rounded-xl hover:bg-accent/30 transition-colors">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg mb-1">{note.title}</h3>
-                            <p className="text-sm text-muted-foreground mb-2">
-                              {format(new Date(note.date), 'd MMMM yyyy, HH:mm', { locale: ru })}
-                            </p>
-                            <p className="text-foreground whitespace-pre-wrap">{note.content}</p>
-                          </div>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setEditingNote(note);
-                                setNoteContent(note.content);
-                                setIsDialogOpen(true);
-                              }}
-                            >
-                              <Icon name="Pencil" size={16} />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => deleteNote(note.id)}
-                            >
-                              <Icon name="Trash2" size={16} />
-                            </Button>
+                      <div key={note.id} className="p-5 bg-white/60 backdrop-blur-sm rounded-2xl hover:shadow-lg transition-all border border-white/50">
+                        <div className={note.image ? 'grid md:grid-cols-[200px_1fr] gap-4' : ''}>
+                          {note.image && (
+                            <img 
+                              src={note.image} 
+                              alt={note.title} 
+                              className="w-full h-48 md:h-full object-cover rounded-xl" 
+                            />
+                          )}
+                          <div className="flex flex-col">
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                              <div className="flex-1">
+                                <h3 className="font-bold text-xl mb-1 text-foreground">{note.title}</h3>
+                                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                  <Icon name="Clock" size={14} />
+                                  {format(new Date(note.date), 'd MMMM yyyy, HH:mm', { locale: ru })}
+                                </p>
+                              </div>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    setEditingNote(note);
+                                    setNoteContent(note.content);
+                                    setNoteTitle(note.title);
+                                    setNoteImage(note.image);
+                                    setIsDialogOpen(true);
+                                  }}
+                                >
+                                  <Icon name="Pencil" size={16} />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => deleteNote(note.id)}
+                                >
+                                  <Icon name="Trash2" size={16} />
+                                </Button>
+                              </div>
+                            </div>
+                            <p className="text-foreground whitespace-pre-wrap leading-relaxed">{note.content}</p>
                           </div>
                         </div>
                       </div>
@@ -517,9 +716,11 @@ const Index = () => {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
+            </div>
+          )}
 
-          <TabsContent value="calendar" className="animate-fade-in">
+          {activeTab === 'calendar' && (
+            <div className="animate-fade-in">
             <Card className="border-0 shadow-lg">
               <CardHeader>
                 <CardTitle>Календарь напоминаний</CardTitle>
@@ -604,9 +805,11 @@ const Index = () => {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+            </div>
+          )}
 
-          <TabsContent value="export" className="animate-fade-in">
+          {activeTab === 'export' && (
+            <div className="animate-fade-in">
             <Card className="border-0 shadow-lg">
               <CardHeader>
                 <CardTitle>Экспорт и импорт данных</CardTitle>
@@ -679,8 +882,10 @@ const Index = () => {
                 </Card>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+            </div>
+          )}
+        </div>
+        </main>
       </div>
     </div>
   );
